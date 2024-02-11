@@ -9,7 +9,7 @@ function encodeMessage(message) {
 }
 
 async function* getMessage() {
-  const buffer = new ArrayBuffer(0, { maxByteLength: 1048576 });
+  const buffer = new ArrayBuffer(0, { maxByteLength: 1024**2 });
   const view = new DataView(buffer);
   let messageLength = 0;
   let readOffset = 0;
@@ -37,13 +37,8 @@ async function* getMessage() {
 }
 
 async function sendMessage(message) {
-  const header = Uint32Array.from({
-    length: 4,
-  }, (_, index) => (message.length >> (index * 8)) & 0xff);
-  const output = new Uint8Array(header.length + message.length);
-  output.set(header, 0);
-  output.set(message, 4);
-  await Bun.write(Bun.stdout, output);
+  await Bun.write(Bun.stdout, new Uint32Array([message.length]));
+  await Bun.write(Bun.stdout, message);
 }
 
 try {
