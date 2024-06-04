@@ -13,7 +13,7 @@ async function* getMessage() {
   const view = new DataView(buffer);
   let messageLength = 0;
   let readOffset = 0;
-  for await (let message of Bun.stdin.stream()) {
+  for await (let message of Bun.file("/dev/stdin").stream()) {
     if (buffer.byteLength === 0) {
       buffer.resize(4);
       for (let i = 0; i < 4; i++) {
