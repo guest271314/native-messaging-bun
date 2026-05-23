@@ -2,18 +2,30 @@
 // Bun Native Messaging host
 // guest271314, 10-9-2022
 
+const buffer = new ArrayBuffer(0, { maxByteLength: 1024 ** 2 * 64 });
+const view = new DataView(buffer);
 const encoder = new TextEncoder();
-
+const decoder = new TextDecoder();
+const maxMessageLengthFromHost = 209715;
+const readable = Bun.stdin.stream();
+const writable = new WritableStream({
+  async write(value) {
+    const fileSink = Bun.stdout.writer({ highWaterMark: Infinity });
+    fileSink.start({ highWaterMark: Infinity });
+    const n0 = fileSink.write(value);
+    const n1 = await fileSink.flush();
+    const n2 = await fileSink.end();
+  }
+});
+const { exit } = process;
+const writer = writable.getWriter();
 function encodeMessage(message) {
   return encoder.encode(JSON.stringify(message));
 }
-
 async function* getMessage() {
-  const buffer = new ArrayBuffer(0, { maxByteLength: 1024**2 });
-  const view = new DataView(buffer);
   let messageLength = 0;
   let readOffset = 0;
-  for await (let message of Bun.file("/dev/stdin").stream()) {
+  for await (let message of readable) {
     if (buffer.byteLength === 0 && messageLength === 0) {
       buffer.resize(4);
       for (let i = 0; i < 4; i++) {
@@ -35,16 +47,42 @@ async function* getMessage() {
     }
   }
 }
-
 async function sendMessage(message) {
-  await Bun.write(Bun.stdout, new Uint32Array([message.length]));
-  await Bun.write(Bun.stdout, message);
+  const json = JSON.parse(decoder.decode(message));
+  if (Array.isArray(json) && json.length > maxMessageLengthFromHost) {
+    for (let i = 0; i < json.length; i += maxMessageLengthFromHost) {
+      const messageChunk = encodeMessage(
+        json.slice(i, i + maxMessageLengthFromHost)
+      );
+      const u8 = new Uint8Array(4 + messageChunk.length);
+      u8.set(new Uint8Array(new Uint32Array([messageChunk.length]).buffer), 0);
+      u8.set(messageChunk, 4);
+      await writer.write(u8);
+      await writer.ready;
+    }
+  } else {
+    const encoded = encodeMessage(json);
+    const u8 = new Uint8Array(4 + encoded.length);
+    u8.set(new Uint8Array(new Uint32Array([encoded.length]).buffer), 0);
+    u8.set(encoded, 4);
+    return await writer.write(u8);
+    await writer.ready;
+  }
 }
-
 try {
   for await (const message of getMessage()) {
     await sendMessage(message);
   }
 } catch (e) {
-  process.exit();
+  sendMessage(encodeMessage(e.message));
+  exit();
 }
+export {
+  encodeMessage,
+  exit,
+  getMessage,
+  readable,
+  sendMessage,
+  writable
+};
+
