@@ -1,4 +1,4 @@
-#!/usr/bin/env -S ./bun run --no-install --smol
+#!/usr/bin/env -S /home/user/bin/bun -b
 // Bun Native Messaging host
 // guest271314, 10-9-2022
 
