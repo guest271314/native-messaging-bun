@@ -1,7 +1,7 @@
 #!/usr/bin/env -S /home/user/bin/bun -b
 //! Bun Native Messaging host, synchronous streaming fs I/O (AOT experiment)
 //! guest271314 11-9-2026
-//! bun check --aot --explain nm_bun_sync_stream.ts
+//! bun check --aot --explain nm_bun.ts
 //! 100.0% of property accesses are one load
 //! ✓ No type errors in 1 file
 
